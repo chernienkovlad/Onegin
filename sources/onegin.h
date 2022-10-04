@@ -1,18 +1,27 @@
 #ifndef SRC_ONEGIN_H_
 #define SRC_ONEGIN_H_
 
+#define NDEBUG
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <ctype.h>
+#include <assert.h>
 
 struct Line_t
 {
-    char* ptr;
-    size_t length;
+    char* ptr = NULL;
+    size_t length = 0;
 };
 
-struct Poem_t
+struct Text_t
 {
-    Line_t* lines;
-    size_t lines_count;
+    Line_t* lines = NULL;
+    size_t lines_count = 0;
+    char* buff = NULL;
+    size_t symbols_count = 0;
 };
 
 enum ShiftIndex
@@ -23,11 +32,12 @@ enum ShiftIndex
 
 int lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2);
 int reverse_lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2);
+size_t get_lines_count(char* buff);
 void create_empty_file(const char filename[]);
 char* create_buff(const char filename[]);
-void fill_poem_struct(Poem_t* poem, char* buf);
-void write_poem_to_file(const char filename[], Poem_t* poem);
-void write_buff_to_file(const char filename[], char* buff);
-void clear_buffers(Poem_t* poem, char* buff);
+void fill_text_struct(Text_t* text, const char filename[]);
+void write_text_struct_to_file(Text_t* text, const char filename[]);
+void write_buff_to_file(Text_t* text, const char filename[]);
+void clear_text_struct(Text_t* text);
 
 #endif  // SRC_ONEGIN_H_

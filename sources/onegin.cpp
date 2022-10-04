@@ -1,12 +1,5 @@
 #include "onegin.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <ctype.h>
-#include <assert.h>
-
 static int my_isalpha(const char symbol)
 {
     return (isalpha(symbol) || symbol == '\n' || symbol == '\0');
@@ -27,8 +20,8 @@ static int my_strcmp(const char* str1, const char* str2, ShiftIndex shift_id)
         return my_strcmp(str1, str2 += shift_id, shift_id);
     }
 
-    char symbol1 = tolower(*str1);
-    char symbol2 = tolower(*str2);
+    char symbol1 = (char)tolower(*str1);
+    char symbol2 = (char)tolower(*str2);
 
     if ((symbol1 == symbol2) && ((symbol1 != '\n' && symbol1 != '\0') && (symbol2 != '\n' && symbol2 != '\0')))
     {
@@ -40,8 +33,11 @@ static int my_strcmp(const char* str1, const char* str2, ShiftIndex shift_id)
 
 int lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2)
 {
-    Line_t* linePtr1 = (Line_t*)lineVoidPtr1;
-    Line_t* linePtr2 = (Line_t*)lineVoidPtr2;
+    assert(lineVoidPtr1 != NULL);
+    assert(lineVoidPtr2 != NULL);
+
+    const Line_t* linePtr1 = (const Line_t*)lineVoidPtr1;
+    const Line_t* linePtr2 = (const Line_t*)lineVoidPtr2;
 
     const char* symbolPtr1 = linePtr1->ptr;
     const char* symbolPtr2 = linePtr2->ptr;
@@ -51,8 +47,11 @@ int lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2)
 
 int reverse_lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2)
 {
-    Line_t* linePtr1 = (Line_t*)lineVoidPtr1;
-    Line_t* linePtr2 = (Line_t*)lineVoidPtr2;
+    assert(lineVoidPtr1 != NULL);
+    assert(lineVoidPtr2 != NULL);
+
+    const Line_t* linePtr1 = (const Line_t*)lineVoidPtr1;
+    const Line_t* linePtr2 = (const Line_t*)lineVoidPtr2;
 
     if (linePtr1->length == 0)
     {
@@ -69,7 +68,7 @@ int reverse_lines_comparator(const void* lineVoidPtr1, const void* lineVoidPtr2)
     return my_strcmp(lastSymbolPtr1, lastSymbolPtr2, REVERSE_SORT);
 }
 
-static size_t get_lines_count(char* buff)
+size_t get_lines_count(char* buff)
 {
     size_t nLines = 0;
 
@@ -83,10 +82,7 @@ static size_t get_lines_count(char* buff)
 void create_empty_file(const char filename[])
 {
     FILE* empty_file = fopen(filename, "w");
-
-    #ifdef DEBUG
     assert(empty_file != NULL);
-    #endif
 
     fclose(empty_file);
 }
@@ -95,79 +91,68 @@ char* create_buff(const char filename[])
 {
     struct stat file_stat = {};
 
-    #ifndef DEBUG
+    #ifdef NDEBUG
     stat(filename, &file_stat);
     #endif
 
-    #ifdef DEBUG
     assert(stat(filename, &file_stat) != -1);
-    #endif
 
-    char* tmp_buff = (char*)calloc(file_stat.st_size + 1, sizeof(char));
-
-    #ifdef DEBUG
+    char* tmp_buff = (char*)calloc((size_t)file_stat.st_size + 2, sizeof(char));
     assert(tmp_buff != NULL);
-    #endif
 
     FILE* file_to_read = fopen(filename, "rb");
-
-    #ifdef DEBUG
     assert(file_to_read != NULL);
-    #endif
 
-    fread(tmp_buff, sizeof(char), file_stat.st_size, file_to_read);
+    fread(tmp_buff + 1, sizeof(char), (size_t)file_stat.st_size, file_to_read);
     fclose(file_to_read);
 
+    tmp_buff[0] = '\0';
     tmp_buff[file_stat.st_size] = '\0';
 
-    return tmp_buff;
+    return (tmp_buff + 1);
 }
 
-void fill_poem_struct(Poem_t* poem, char* buff)
+void fill_text_struct(Text_t* text, const char filename[])
 {
-    #ifdef DEBUG
-    assert(poem != NULL);
-    assert(buff != NULL);
-    #endif
+    assert(text != NULL);
 
-    poem->lines_count = get_lines_count(buff);
-    poem->lines = (Line_t*)calloc(poem->lines_count, sizeof(Line_t));
+    text->buff = create_buff(filename);
 
-    #ifdef DEBUG
-    assert(poem->lines != NULL);
-    #endif
+    text->lines_count = get_lines_count(text->buff);
+    text->symbols_count = strlen(text->buff);
 
-    char* symbol_ptr = buff;
+    text->lines = (Line_t*)calloc(text->lines_count, sizeof(Line_t));
+    assert(text->lines != NULL);
 
-    for (unsigned int i = 0; i < poem->lines_count; i++)
+    char* symbol_ptr = text->buff;
+
+    for (unsigned int i = 0; i < text->lines_count; i++)
     {
-        poem->lines[i].ptr = symbol_ptr;
+        text->lines[i].ptr = symbol_ptr;
 
         while (*symbol_ptr != '\n' && *symbol_ptr != '\0')
         {
             symbol_ptr++;
         }
-        poem->lines[i].length = symbol_ptr - poem->lines[i].ptr;
+        text->lines[i].length = (size_t)(symbol_ptr - text->lines[i].ptr);
 
-        if (i != poem->lines_count - 1)
+        if (i != text->lines_count - 1)
         {
             symbol_ptr++;
         }
     }
 }
 
-void write_poem_to_file(const char filename[], Poem_t* poem)
+void write_text_struct_to_file(Text_t* text, const char filename[])
 {
-    #ifdef DEBUG
-    assert(poem != NULL);
-    assert(poem->lines != NULL);
-    #endif
+    assert(text != NULL);
+    assert(text->lines != NULL);
 
     FILE* file_to_write = fopen(filename, "a");
 
-    for (unsigned int i = 0; i < poem->lines_count; i++)
+    for (unsigned int i = 0; i < text->lines_count; i++)
     {
-        fwrite(poem->lines[i].ptr, sizeof(char), poem->lines[i].length, file_to_write);
+        fwrite(text->lines[i].ptr, sizeof(char), text->lines[i].length, file_to_write);
         fprintf(file_to_write, "%c", '\n');
     }
     fprintf(file_to_write, "%s", "\n\n====================================================================================================\n\n\n");
@@ -175,22 +160,25 @@ void write_poem_to_file(const char filename[], Poem_t* poem)
     fclose(file_to_write);
 }
 
-void write_buff_to_file(const char filename[], char* buff)
+void write_buff_to_file(Text_t* text, const char filename[])
 {
-    #ifdef DEBUG
-    assert(buff != NULL);
-    #endif
+    assert(text != NULL);
+    assert(text->buff != NULL);
 
     FILE* file_to_write = fopen(filename, "a");
-    fwrite(buff, sizeof(char), strlen(buff), file_to_write);
+    fwrite(text->buff, sizeof(char), strlen(text->buff), file_to_write);
     fclose(file_to_write);
 }
 
-void clear_buffers(Poem_t* poem, char* buff)
+void clear_text_struct(Text_t* text)
 {
-    free(poem->lines);
-    free(buff);
+    assert(text != NULL);
 
-    poem->lines = NULL;
-    buff = NULL;
+    free(text->lines);
+    free(text->buff - 1);
+
+    text->lines = NULL;
+    text->lines_count = 0;
+    text->buff = NULL;
+    text->symbols_count = 0;
 }
